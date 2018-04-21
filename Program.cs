@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace CategorySelector
 {
@@ -26,6 +27,16 @@ namespace CategorySelector
                     { "a", -10 },       // won't pass "a>-2.2" in query
                     { "c", true }
                 };
+
+                var willSkipped = new Dictionary<string, object>
+                {
+                    { "c", true },
+                };
+
+                if (!queryChecks.IsSubsetOf(willSkipped.Keys))
+                {
+                    Console.WriteLine($"Skip {nameof(willSkipped)} because it doesn't contains all keys what query will check");
+                }
 
                 Console.WriteLine($"{nameof(willPass)} - {transformedQuery(willPass)}");
                 Console.WriteLine($"{nameof(wontPass)} - {transformedQuery(wontPass)}");

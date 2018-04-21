@@ -22,7 +22,16 @@ namespace CategorySelector
                 return (false, lexerBuilder.Errors.Select(error => error.Message).ToArray());
             }
 
-            var tokenStream = lexerBuilder.Result.Tokenize(query).ToList();
+            List<Token<CategoryQueryToken>> tokenStream = null;
+
+            try // we need this block because Exception could be thrown during lexical analyze because of invalid character in example
+            {   
+                tokenStream = lexerBuilder.Result.Tokenize(query).ToList();
+            }
+            catch (LexerException<CategoryQueryToken> e)
+            {
+                return (false, new[] { e.Error.ErrorMessage });
+            }
 
             queryChecks = new HashSet<string>(5);
             CategoryQueryParser categoryQueryParser = new CategoryQueryParser(queryChecks);

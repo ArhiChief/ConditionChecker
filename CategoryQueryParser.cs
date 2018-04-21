@@ -102,8 +102,10 @@ namespace CategorySelector
                     throw new InvalidOperationException($"Unknown operation for '{left.Value} {op.Value} {right.Value}': Operator '{op.Value}' can't be used with this values");
             }
 
+            
             // select condition checker
             string leftVal = left.Value;
+            _queryTokens.Add(leftVal);
             switch (opTok)
             {
                 case CategoryQueryToken.GE:
