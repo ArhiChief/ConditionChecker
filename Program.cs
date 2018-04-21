@@ -1,9 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using sly.buildresult;
-using sly.lexer;
-using sly.parser.generator;
 
 namespace CategorySelector
 {
@@ -11,26 +7,36 @@ namespace CategorySelector
     {
         static void Main(string[] args)
         {
-            var lexerRes = LexerBuilder.BuildLexer<QueryToken>(new BuildResult<ILexer<QueryToken>>());
-            var tokenStream = lexerRes.Result.Tokenize("!!(a != w) && !!(a = \"Misc works\" && a != test) && b >=45 && c = false" ).ToList();
+            string query = "a> -2.2 && c=true";
 
-            QueryExpressionParser queryParserDef = new QueryExpressionParser();
+            ICategoryQueryTransformator categoryQueryTransformator = new CategoryQueryTransformator();
 
-            var parserBuilder = new ParserBuilder<QueryToken, object>();
-            var parser = parserBuilder.BuildParser(queryParserDef, ParserType.LL_RECURSIVE_DESCENT, "expr");
+            var result = categoryQueryTransformator.Transform(query, out var transformedQuery, out var queryChecks);
 
-            var pres = parser.Result.Parse(tokenStream);
-
-            var res = (Func<IDictionary<string, object>, bool>)pres.Result;
-
-            var dict = new Dictionary<string, object>
+            if (result.isOk)
             {
-                { "a", "Misc works" },
-                { "b", 45 },
-                { "c", false }
-            };
+                var willPass = new Dictionary<string, object>
+                {
+                    { "a", 10 },
+                    { "c", true }
+                };
 
-            Console.WriteLine(res(dict));
+                var wontPass = new Dictionary<string, object>
+                {
+                    { "a", -10 },       // won't pass "a>-2.2" in query
+                    { "c", true }
+                };
+
+                Console.WriteLine($"{nameof(willPass)} - {transformedQuery(willPass)}");
+                Console.WriteLine($"{nameof(wontPass)} - {transformedQuery(wontPass)}");
+            }
+            else
+            {
+                foreach (var error in result.errors)
+                {
+                    Console.WriteLine(error);
+                }
+            }
         }
     }
 }

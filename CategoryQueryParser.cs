@@ -3,7 +3,7 @@ using sly.parser.generator;
 using System.Collections.Generic;
 
 using Operand = System.Func<System.Collections.Generic.IDictionary<string, object>, bool>;
-using Token = sly.lexer.Token<CategorySelector.QueryToken>;
+using Token = sly.lexer.Token<CategorySelector.CategoryQueryToken>;
 
 
 namespace CategorySelector
@@ -33,8 +33,15 @@ namespace CategorySelector
                 |   CONTAINS
                     
     */
-    public class QueryExpressionParser
+    internal class CategoryQueryParser
     {
+        private readonly HashSet<string> _queryTokens;
+
+        public CategoryQueryParser(HashSet<string> queryTokens)
+        {
+            _queryTokens = queryTokens ?? throw new ArgumentNullException(nameof(queryTokens));
+        }
+
 
         [Production("expr: term OR expr")]
         public Operand Expr(Operand left, Token _, Operand right) => (p) => left(p) || right(p);
@@ -56,38 +63,38 @@ namespace CategorySelector
         [Production("operand: STRING op BOOLEAN")]
         public Operand Operand(Token left, Token op, Token right)
         {
-            QueryToken opTok = (QueryToken)op.TokenID;
-            QueryToken rightTok = (QueryToken)right.TokenID;
+            CategoryQueryToken opTok = (CategoryQueryToken)op.TokenID;
+            CategoryQueryToken rightTok = (CategoryQueryToken)right.TokenID;
 
             // check for operation possibility
             switch (rightTok)
             {
-                case QueryToken.STRING:
+                case CategoryQueryToken.STRING:
                     switch (opTok)
                     {
-                        case QueryToken.GE:
-                        case QueryToken.LE:
-                        case QueryToken.GT:
-                        case QueryToken.LT:
+                        case CategoryQueryToken.GE:
+                        case CategoryQueryToken.LE:
+                        case CategoryQueryToken.GT:
+                        case CategoryQueryToken.LT:
                             throw new InvalidOperationException($"Invalid operation for '{left.Value} {op.Value} {right.Value}': Operator '{op.Value}' can't be used with string values");
                     }
                     break;
-                case QueryToken.FLOAT:
-                case QueryToken.INTEGER:
+                case CategoryQueryToken.FLOAT:
+                case CategoryQueryToken.INTEGER:
                     switch (opTok)
                     {
-                        case QueryToken.CONTAINS:
+                        case CategoryQueryToken.CONTAINS:
                             throw new InvalidOperationException($"Invalid operation for '{left.Value} {op.Value} {right.Value}': Operator '{op.Value}' can't be used with numeric operand");
                     }
                     break;
-                case QueryToken.BOOLEAN:
+                case CategoryQueryToken.BOOLEAN:
                     switch (opTok)
                     {
-                        case QueryToken.GE:
-                        case QueryToken.LE:
-                        case QueryToken.GT:
-                        case QueryToken.LT:
-                        case QueryToken.CONTAINS:
+                        case CategoryQueryToken.GE:
+                        case CategoryQueryToken.LE:
+                        case CategoryQueryToken.GT:
+                        case CategoryQueryToken.LT:
+                        case CategoryQueryToken.CONTAINS:
                             throw new InvalidOperationException($"Invalid operation for '{left.Value} {op.Value} {right.Value}': Operator '{op.Value}' can't be used with boolean values");
                     }
                     break;
@@ -99,41 +106,41 @@ namespace CategorySelector
             string leftVal = left.Value;
             switch (opTok)
             {
-                case QueryToken.GE:
+                case CategoryQueryToken.GE:
                     return (p) => Convert.ToDouble(p[leftVal]) >= right.DoubleValue;
-                case QueryToken.LE:
+                case CategoryQueryToken.LE:
                     return (p) => Convert.ToDouble(p[leftVal]) <= right.DoubleValue;
-                case QueryToken.NEQ:
+                case CategoryQueryToken.NEQ:
                     switch (rightTok)
                     {
-                        case QueryToken.STRING:
+                        case CategoryQueryToken.STRING:
                             return (Operand)((p) => !string.Equals((string)p[leftVal], right.StringWithoutQuotes, StringComparison.InvariantCultureIgnoreCase));
-                        case QueryToken.INTEGER:
+                        case CategoryQueryToken.INTEGER:
                             return (Operand)((p) => (int)p[leftVal] != right.IntValue);
-                        case QueryToken.FLOAT:
+                        case CategoryQueryToken.FLOAT:
                             return (Operand)((p) => (double)p[leftVal] != right.DoubleValue);
-                        case QueryToken.BOOLEAN:
+                        case CategoryQueryToken.BOOLEAN:
                             return (Operand)((p) => (bool)p[leftVal] != Convert.ToBoolean(right.StringWithoutQuotes));
                     }
                     break;
-                case QueryToken.CONTAINS:
+                case CategoryQueryToken.CONTAINS:
                     return (p) => ((string)p[leftVal]).Contains(right.StringWithoutQuotes);
-                case QueryToken.EQ:
+                case CategoryQueryToken.EQ:
                     switch (rightTok)
                     {
-                        case QueryToken.STRING:
+                        case CategoryQueryToken.STRING:
                             return (Operand)((p) => string.Equals((string)p[leftVal], right.StringWithoutQuotes, StringComparison.InvariantCultureIgnoreCase));
-                        case QueryToken.INTEGER:
+                        case CategoryQueryToken.INTEGER:
                             return (Operand)((p) => (int)p[leftVal] == right.IntValue);
-                        case QueryToken.FLOAT:
+                        case CategoryQueryToken.FLOAT:
                             return (Operand)((p) => (double)p[leftVal] == right.DoubleValue);
-                        case QueryToken.BOOLEAN:
+                        case CategoryQueryToken.BOOLEAN:
                             return (Operand)((p) => (bool)p[leftVal] == Convert.ToBoolean(right.StringWithoutQuotes));
                     }
                     break;
-                case QueryToken.GT:
+                case CategoryQueryToken.GT:
                     return (p) => Convert.ToDouble(p[leftVal]) > right.DoubleValue;
-                case QueryToken.LT:
+                case CategoryQueryToken.LT:
                     return (p) => Convert.ToDouble(p[leftVal]) < right.DoubleValue;
                 default:
                     throw new InvalidOperationException($"Invalid operation for '{left.Value} {op.Value} {right.Value}': Operator '{op.Value}' can't be used here");

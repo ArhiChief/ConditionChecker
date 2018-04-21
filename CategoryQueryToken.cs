@@ -2,14 +2,14 @@ using sly.lexer;
 
 namespace CategorySelector
 {
-    public enum QueryToken
+    internal enum CategoryQueryToken
     {
         [Lexeme("true|false")]
         BOOLEAN,
-        [Lexeme("[0-9]+")]
-        INTEGER,
-        [Lexeme("[0-9]+\\.[0-9]+")]
+        [Lexeme("[+-]?([0-9]+\\.[0-9]+)")]
         FLOAT,
+        [Lexeme("[+-]?[0-9]+")]
+        INTEGER,
         [Lexeme("\"[^\"]*\"|\\w+")]
         STRING,
         
