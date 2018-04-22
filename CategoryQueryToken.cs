@@ -19,7 +19,7 @@ namespace CategorySelector
         LE,
         [Lexeme("!=")]
         NEQ,
-        [Lexeme("~")]
+        [Lexeme("~=")]
         CONTAINS,
         [Lexeme("=")]
         EQ,

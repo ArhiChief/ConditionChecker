@@ -82,13 +82,13 @@ namespace CategorySelector
                 case CategoryQueryToken.NEQ:
                     return (p) => Compare(p[leftVal], right.Value) != 0;
                 case CategoryQueryToken.GT:
-                    return (p) => Compare(p[leftVal], right.Value) < 0;
-                case CategoryQueryToken.LT:
                     return (p) => Compare(p[leftVal], right.Value) > 0;
+                case CategoryQueryToken.LT:
+                    return (p) => Compare(p[leftVal], right.Value) < 0;
                 case CategoryQueryToken.LE:
-                    return (p) => Compare(p[leftVal], right.Value) >= 0;
-                case CategoryQueryToken.GE:
                     return (p) => Compare(p[leftVal], right.Value) <= 0;
+                case CategoryQueryToken.GE:
+                    return (p) => Compare(p[leftVal], right.Value) >= 0;
             }
 
             throw new InvalidOperationException($"Invalid operation for '{left.Value} {op.Value} {right}': Can't recognize.");
