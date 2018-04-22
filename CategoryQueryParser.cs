@@ -17,20 +17,22 @@ namespace CategorySelector
             term    ->  operand AND term
                     |   operand
 
-            operand ->  STRING op STRING
-                    |   STRING op INTEGER
-                    |   STRING op FLOAT
-                    |   STRING op BOOLEAN
+            operand ->  STRING EQ STRING
+                    |   STRING NEQ STRING
+                    |   STRING CONTAINS STRING
+                    |   STRING EQ BOOLEAN
+                    |   STRING NEQ BOOLEAN
+                    |   STRING EQ number
+                    |   STRING NEQ numbe
+                    |   STRING GT number
+                    |   STRING LT number
+                    |   STRING LE number
+                    |   STRING GE number
                     |   LPAREN expr RPAREN
                     |   NOT operand
 
-            op  ->  GT      // This production is needed as shortcut for "operand" production
-                |   LT
-                |   GE
-                |   LE
-                |   EQ
-                |   NEQ
-                |   CONTAINS
+            number  ->  FLOAT
+                    |   INTEGER
                     
     */
     internal class CategoryQueryParser
@@ -56,112 +58,142 @@ namespace CategorySelector
         public Operand Term(Operand op) => op;
 
 
-
-        [Production("operand: STRING op STRING")]
-        [Production("operand: STRING op INTEGER")]
-        [Production("operand: STRING op FLOAT")]
-        [Production("operand: STRING op BOOLEAN")]
-        public Operand Operand(Token left, Token op, Token right)
+        [Production("operand: STRING EQ string")]
+        [Production("operand: STRING NEQ string")]
+        [Production("operand: STRING CONTAINS string")]
+        [Production("operand: STRING EQ boolean")]
+        [Production("operand: STRING NEQ boolean")]
+        [Production("operand: STRING NEQ number")]
+        [Production("operand: STRING EQ number")]
+        [Production("operand: STRING GT number")]
+        [Production("operand: STRING LT number")]
+        [Production("operand: STRING LE number")]
+        [Production("operand: STRING GE number")]
+        public Operand Operand(Token left, Token op, TokenValue right)
         {
-            CategoryQueryToken opTok = (CategoryQueryToken)op.TokenID;
-            CategoryQueryToken rightTok = (CategoryQueryToken)right.TokenID;
-
-            // check for operation possibility
-            switch (rightTok)
-            {
-                case CategoryQueryToken.STRING:
-                    switch (opTok)
-                    {
-                        case CategoryQueryToken.GE:
-                        case CategoryQueryToken.LE:
-                        case CategoryQueryToken.GT:
-                        case CategoryQueryToken.LT:
-                            throw new InvalidOperationException($"Invalid operation for '{left.Value} {op.Value} {right.Value}': Operator '{op.Value}' can't be used with string values");
-                    }
-                    break;
-                case CategoryQueryToken.FLOAT:
-                case CategoryQueryToken.INTEGER:
-                    switch (opTok)
-                    {
-                        case CategoryQueryToken.CONTAINS:
-                            throw new InvalidOperationException($"Invalid operation for '{left.Value} {op.Value} {right.Value}': Operator '{op.Value}' can't be used with numeric operand");
-                    }
-                    break;
-                case CategoryQueryToken.BOOLEAN:
-                    switch (opTok)
-                    {
-                        case CategoryQueryToken.GE:
-                        case CategoryQueryToken.LE:
-                        case CategoryQueryToken.GT:
-                        case CategoryQueryToken.LT:
-                        case CategoryQueryToken.CONTAINS:
-                            throw new InvalidOperationException($"Invalid operation for '{left.Value} {op.Value} {right.Value}': Operator '{op.Value}' can't be used with boolean values");
-                    }
-                    break;
-                default:
-                    throw new InvalidOperationException($"Unknown operation for '{left.Value} {op.Value} {right.Value}': Operator '{op.Value}' can't be used with this values");
-            }
-
-            
-            // select condition checker
-            string leftVal = left.Value;
+            string leftVal = left.StringWithoutQuotes;
             _queryTokens.Add(leftVal);
-            switch (opTok)
+            switch (op.TokenID)
             {
-                case CategoryQueryToken.GE:
-                    return (p) => Convert.ToDouble(p[leftVal]) >= right.DoubleValue;
-                case CategoryQueryToken.LE:
-                    return (p) => Convert.ToDouble(p[leftVal]) <= right.DoubleValue;
-                case CategoryQueryToken.NEQ:
-                    switch (rightTok)
-                    {
-                        case CategoryQueryToken.STRING:
-                            return (Operand)((p) => !string.Equals((string)p[leftVal], right.StringWithoutQuotes, StringComparison.InvariantCultureIgnoreCase));
-                        case CategoryQueryToken.INTEGER:
-                            return (Operand)((p) => (int)p[leftVal] != right.IntValue);
-                        case CategoryQueryToken.FLOAT:
-                            return (Operand)((p) => (double)p[leftVal] != right.DoubleValue);
-                        case CategoryQueryToken.BOOLEAN:
-                            return (Operand)((p) => (bool)p[leftVal] != Convert.ToBoolean(right.StringWithoutQuotes));
-                    }
-                    break;
                 case CategoryQueryToken.CONTAINS:
-                    return (p) => ((string)p[leftVal]).Contains(right.StringWithoutQuotes);
+                    return (p) => ((string)p[leftVal]).Contains(right.Value.ToString());
                 case CategoryQueryToken.EQ:
-                    switch (rightTok)
-                    {
-                        case CategoryQueryToken.STRING:
-                            return (Operand)((p) => string.Equals((string)p[leftVal], right.StringWithoutQuotes, StringComparison.InvariantCultureIgnoreCase));
-                        case CategoryQueryToken.INTEGER:
-                            return (Operand)((p) => (int)p[leftVal] == right.IntValue);
-                        case CategoryQueryToken.FLOAT:
-                            return (Operand)((p) => (double)p[leftVal] == right.DoubleValue);
-                        case CategoryQueryToken.BOOLEAN:
-                            return (Operand)((p) => (bool)p[leftVal] == Convert.ToBoolean(right.StringWithoutQuotes));
-                    }
-                    break;
+                    return (p) => Compare(p[leftVal], right.Value) == 0;
+                case CategoryQueryToken.NEQ:
+                    return (p) => Compare(p[leftVal], right.Value) != 0;
                 case CategoryQueryToken.GT:
-                    return (p) => Convert.ToDouble(p[leftVal]) > right.DoubleValue;
+                    return (p) => Compare(p[leftVal], right.Value) < 0;
                 case CategoryQueryToken.LT:
-                    return (p) => Convert.ToDouble(p[leftVal]) < right.DoubleValue;
-                default:
-                    throw new InvalidOperationException($"Invalid operation for '{left.Value} {op.Value} {right.Value}': Operator '{op.Value}' can't be used here");
+                    return (p) => Compare(p[leftVal], right.Value) > 0;
+                case CategoryQueryToken.LE:
+                    return (p) => Compare(p[leftVal], right.Value) >= 0;
+                case CategoryQueryToken.GE:
+                    return (p) => Compare(p[leftVal], right.Value) <= 0;
             }
 
-            throw new InvalidOperationException($"Invalid operation for '{left.Value} {op.Value} {right.Value}': Can't recognize.");
+            throw new InvalidOperationException($"Invalid operation for '{left.Value} {op.Value} {right}': Can't recognize.");
         }
         [Production("operand: LPAREN expr RPAREN")]
         public Operand Operand(Token _1, Operand expr, Token _2) => expr;
         [Production("operand: NOT operand")]
         public Operand Operand(Token _, Operand expr) => (p) => !expr(p);
 
-        [Production("op: GT")]
-        [Production("op: LT")]
-        [Production("op: GE")]
-        [Production("op: LE")]
-        [Production("op: EQ")]
-        [Production("op: NEQ")]
-        [Production("op: CONTAINS")]
-        public Token Op(Token tok) => tok;
+
+        [Production("number: FLOAT")]
+        [Production("number: INTEGER")]
+        public TokenValue Number(Token tok) => (tok.TokenID == CategoryQueryToken.FLOAT)
+            ? new TokenValue(tok.DoubleValue)
+            : new TokenValue(tok.IntValue);
+
+        [Production("string: STRING")]
+        public TokenValue String(Token tok) => new TokenValue(tok.StringWithoutQuotes);
+
+        [Production("boolean: BOOLEAN")]
+        public TokenValue Boolean(Token tok) => new TokenValue(bool.Parse(tok.Value));
+
+        public class TokenValue
+        {
+            public TokenValue(int val)
+            {
+                intVal = val;
+                valueType = ValueType.Integer;
+            }
+
+            public TokenValue(double val)
+            {
+                doubleVal = val;
+                valueType = ValueType.Double;
+            }
+
+            public TokenValue(bool val)
+            {
+                boolVal = val;
+                valueType = ValueType.Boolean;
+            }
+
+            public TokenValue(string val)
+            {
+                stringVal = val;
+                valueType = ValueType.String;
+            }
+
+            public TokenValue(object val)
+            {
+                objectVal = val;
+                valueType = ValueType.Object;
+            }
+
+            public object Value
+            {
+                get
+                {
+                    switch (valueType)
+                    {
+                        case ValueType.Boolean:
+                            return boolVal;
+                        case ValueType.Double:
+                            return doubleVal;
+                        case ValueType.Integer:
+                            return intVal;
+                        case ValueType.String:
+                            return stringVal;
+                        default:
+                            return objectVal;
+                    }
+                }
+            }
+
+            bool boolVal;
+            int intVal;
+            double doubleVal;
+            string stringVal;
+            object objectVal;
+
+            ValueType valueType;
+
+            enum ValueType
+            {
+                Object,
+                String,
+                Integer,
+                Double,
+                Boolean,
+            }
+        }
+
+        private static int Compare(object a, object b)
+        {                           
+            if (a is int && b is double)
+            {
+                a = Convert.ToDouble(a);
+            }
+
+            if (a is double && b is int)
+            {
+                b = Convert.ToDouble(b);
+            }
+
+            return ((IComparable)a).CompareTo(b);
+        }
     }
 }

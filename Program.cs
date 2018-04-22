@@ -8,7 +8,7 @@ namespace CategorySelector
     {
         static void Main(string[] args)
         {
-            string query = "a> -2.2 && c=true";
+            string query = "a > 2&&c=true";
 
             ICategoryQueryTransformator categoryQueryTransformator = new CategoryQueryTransformator();
 
@@ -18,15 +18,17 @@ namespace CategorySelector
             {
                 var willPass = new Dictionary<string, object>
                 {
-                    { "a", 10 },
+                    { "a", new Color { Val = 10 } },
                     { "c", true }
                 };
 
                 var wontPass = new Dictionary<string, object>
                 {
-                    { "a", -10 },       // won't pass "a>-2.2" in query
+                    { "a", -2.2 },       // won't pass "a>-2.2" in query
                     { "c", true }
                 };
+
+                var t = ((IComparable)willPass["a"]).CompareTo(2);
 
                 var willSkipped = new Dictionary<string, object>
                 {
@@ -47,6 +49,15 @@ namespace CategorySelector
                 {
                     Console.WriteLine(error);
                 }
+            }
+        }
+
+        class Color : IComparable
+        {
+            public int Val { get; set; }
+            public int CompareTo(object obj)
+            {
+                return Val.CompareTo(obj);
             }
         }
     }
